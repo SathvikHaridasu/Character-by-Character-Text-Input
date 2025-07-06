@@ -90,6 +90,22 @@ startBtn.addEventListener('click', async () => {
       }
       setButtons('typing');
       inputText.value = '';
+      
+      // Set up a listener to detect when typing completes
+      const checkCompletion = setInterval(() => {
+        chrome.tabs.sendMessage(tab.id, {action: 'status'}, (response) => {
+          if (chrome.runtime.lastError) {
+            clearInterval(checkCompletion);
+            return;
+          }
+          if (response && !response.isTyping) {
+            clearInterval(checkCompletion);
+            setButtons('idle');
+            showError('Typing completed!');
+            setTimeout(clearError, 2000);
+          }
+        });
+      }, 500);
     });
   });
 });
