@@ -6,6 +6,7 @@ const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const resumeBtn = document.getElementById('resumeBtn');
 const stopBtn = document.getElementById('stopBtn');
+const testBtn = document.getElementById('testBtn');
 const errorDiv = document.getElementById('error');
 
 function showError(msg) {
@@ -142,5 +143,37 @@ stopBtn.addEventListener('click', () => {
     const tab = tabs[0];
     chrome.tabs.sendMessage(tab.id, {action: 'stop'});
     setButtons('idle');
+  });
+});
+
+testBtn.addEventListener('click', () => {
+  console.log('Test button clicked');
+  clearError();
+  
+  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+    const tab = tabs[0];
+    console.log('Testing connection to tab:', tab);
+    
+    if (!tab.url || !tab.url.startsWith('https://docs.google.com/document/')) {
+      showError('Please use this extension on a Google Docs page.');
+      return;
+    }
+    
+    console.log('Sending ping to content script...');
+    chrome.tabs.sendMessage(tab.id, {action: 'ping'}, (response) => {
+      console.log('Ping response:', response);
+      console.log('Ping error:', chrome.runtime.lastError);
+      
+      if (chrome.runtime.lastError) {
+        console.error('Ping failed:', chrome.runtime.lastError);
+        showError('Content script not responding. Please refresh the page.');
+      } else if (response && response.message === 'pong') {
+        console.log('✅ Content script is working!');
+        showError('✅ Connection successful! Content script is working.');
+        setTimeout(clearError, 2000);
+      } else {
+        showError('Unexpected response from content script.');
+      }
+    });
   });
 }); 

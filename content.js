@@ -310,6 +310,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Content script received message:', request);
   
   switch (request.action) {
+    case 'ping':
+      console.log('Ping received, responding with pong');
+      sendResponse({ message: 'pong', timestamp: Date.now() });
+      break;
+      
     case 'start':
       const result = startTyping(request.text, request.wpm);
       sendResponse(result);
@@ -341,4 +346,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true; // Keep message channel open for async response
 });
 
-console.log('Character-by-Character Text Input content script loaded'); 
+console.log('Character-by-Character Text Input content script loaded');
+
+// Add a simple test to verify the content script is working
+window.addEventListener('load', () => {
+  console.log('Page fully loaded, content script is active');
+  
+  // Test if we can find the Google Docs editor
+  const editor = findGoogleDocsEditor();
+  if (editor) {
+    console.log('✅ Google Docs editor found:', editor);
+  } else {
+    console.log('❌ Google Docs editor not found');
+  }
+}); 
