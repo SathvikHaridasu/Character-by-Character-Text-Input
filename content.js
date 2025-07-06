@@ -21,7 +21,9 @@ function findGoogleDocsEditor() {
     '[aria-label*="document"]',
     '[contenteditable="true"]',
     '.kix-lineview-content',
-    '[role="textbox"]'
+    '[role="textbox"]',
+    '.kix-page-content-wrapper',
+    '.kix-appview-editor-content'
   ];
   
   for (const selector of selectors) {
@@ -45,6 +47,13 @@ function findGoogleDocsEditor() {
       console.log('Selected fallback editor element:', element);
       return element;
     }
+  }
+  
+  // Last resort: try to find the main document area
+  const docArea = document.querySelector('.kix-appview-editor');
+  if (docArea) {
+    console.log('Found main document area:', docArea);
+    return docArea;
   }
   
   console.log('No suitable editor found');
@@ -94,40 +103,99 @@ function typeCharacter(editor, char) {
   console.log('Attempting to type character:', char);
   
   try {
-    // Method 1: Try execCommand first
-    const success = document.execCommand('insertText', false, char);
-    console.log('execCommand result:', success);
+    // Focus the editor first
+    editor.focus();
     
-    if (success) {
-      return;
-    }
+    // Create a more comprehensive keyboard event simulation
+    const keyCode = char.charCodeAt(0);
     
-    // Method 2: Try keyboard events
-    const keyEvent = new KeyboardEvent('keydown', {
+    // Keydown event
+    const keydownEvent = new KeyboardEvent('keydown', {
       key: char,
-      code: `Key${char.toUpperCase()}`,
+      code: char.length === 1 ? `Key${char.toUpperCase()}` : 'Key' + char,
+      keyCode: keyCode,
+      which: keyCode,
       bubbles: true,
-      cancelable: true
+      cancelable: true,
+      composed: true,
+      isTrusted: false
     });
     
-    const keyPressEvent = new KeyboardEvent('keypress', {
+    // Keypress event
+    const keypressEvent = new KeyboardEvent('keypress', {
       key: char,
-      code: `Key${char.toUpperCase()}`,
+      code: char.length === 1 ? `Key${char.toUpperCase()}` : 'Key' + char,
+      keyCode: keyCode,
+      which: keyCode,
       bubbles: true,
-      cancelable: true
+      cancelable: true,
+      composed: true,
+      isTrusted: false
     });
     
-    editor.dispatchEvent(keyEvent);
-    editor.dispatchEvent(keyPressEvent);
+    // Keyup event
+    const keyupEvent = new KeyboardEvent('keyup', {
+      key: char,
+      code: char.length === 1 ? `Key${char.toUpperCase()}` : 'Key' + char,
+      keyCode: keyCode,
+      which: keyCode,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      isTrusted: false
+    });
     
-    // Method 3: Try direct text insertion
-    if (editor.textContent !== undefined) {
-      editor.textContent += char;
-    } else if (editor.innerHTML !== undefined) {
-      editor.innerHTML += char;
+    // Dispatch events on the document to ensure they bubble properly
+    document.dispatchEvent(keydownEvent);
+    document.dispatchEvent(keypressEvent);
+    
+    // Try to insert the character using multiple methods
+    let inserted = false;
+    
+    // Method 1: execCommand
+    try {
+      inserted = document.execCommand('insertText', false, char);
+      console.log('execCommand result:', inserted);
+    } catch (e) {
+      console.log('execCommand failed:', e);
     }
     
-    console.log('Character typed successfully');
+    // Method 2: If execCommand failed, try direct insertion
+    if (!inserted) {
+      try {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(document.createTextNode(char));
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          inserted = true;
+          console.log('Direct insertion successful');
+        }
+      } catch (e) {
+        console.log('Direct insertion failed:', e);
+      }
+    }
+    
+    // Method 3: If still not inserted, try clipboard
+    if (!inserted) {
+      try {
+        navigator.clipboard.writeText(char).then(() => {
+          document.execCommand('paste');
+          console.log('Clipboard insertion successful');
+        }).catch((e) => {
+          console.log('Clipboard insertion failed:', e);
+        });
+      } catch (e) {
+        console.log('Clipboard method failed:', e);
+      }
+    }
+    
+    document.dispatchEvent(keyupEvent);
+    
+    console.log('Character typing attempt completed');
   } catch (error) {
     console.error('Error typing character:', error);
   }
