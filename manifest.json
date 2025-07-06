@@ -3,8 +3,11 @@
   "name": "Character-by-Character Text Input",
   "version": "1.0",
   "description": "Simulate character-by-character typing in Google Docs.",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "tabs"],
   "host_permissions": ["https://docs.google.com/document/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html"
   },
@@ -12,7 +15,8 @@
     {
       "matches": ["https://docs.google.com/document/*"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_end",
+      "all_frames": false
     }
   ]
 } 

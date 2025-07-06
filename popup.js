@@ -68,20 +68,31 @@ startBtn.addEventListener('click', async () => {
     showError('No line breaks allowed.');
     return;
   }
+  
+  console.log('Start button clicked, text:', text);
+  
   // Check if on Google Docs
   chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
     const tab = tabs[0];
+    console.log('Current tab:', tab);
+    
     if (!tab.url || !tab.url.startsWith('https://docs.google.com/document/')) {
       showError('Please use this extension on a Google Docs page.');
       return;
     }
+    
+    console.log('Sending message to content script...');
     chrome.tabs.sendMessage(tab.id, {
       action: 'start',
       text,
       wpm: parseInt(wpm.value, 10)
     }, (response) => {
+      console.log('Response from content script:', response);
+      console.log('Chrome runtime error:', chrome.runtime.lastError);
+      
       if (chrome.runtime.lastError) {
-        showError('Could not communicate with content script.');
+        console.error('Communication error:', chrome.runtime.lastError);
+        showError('Could not communicate with content script. Please refresh the page and try again.');
         return;
       }
       if (response && response.error) {
