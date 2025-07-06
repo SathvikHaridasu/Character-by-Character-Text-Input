@@ -132,36 +132,44 @@ function typeCharacter(editor, char) {
     // Focus the editor first
     editor.focus();
     
-    // Method 1: Try to use Google Docs' own input method
-    // Look for the actual input area within Google Docs
-    const inputArea = document.querySelector('.kix-lineview-content') || 
-                     document.querySelector('[contenteditable="true"]') ||
-                     editor;
+    // Find the actual Google Docs text area
+    const textArea = document.querySelector('.kix-lineview-content') ||
+                    document.querySelector('[contenteditable="true"][role="textbox"]') ||
+                    document.querySelector('.kix-appview-editor-content') ||
+                    editor;
     
-    console.log('Using input area:', inputArea);
+    console.log('Using text area:', textArea);
     
-    // Create a more realistic input event
-    const inputEvent = new InputEvent('input', {
-      inputType: 'insertText',
-      data: char,
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    });
+    // Method 1: Try to use Google Docs' actual text insertion method
+    // Look for the text blocks and try to modify them directly
+    const textBlocks = document.querySelectorAll('.kix-lineview-text-block');
+    console.log('Found text blocks:', textBlocks.length);
     
-    // Create beforeinput event
-    const beforeInputEvent = new InputEvent('beforeinput', {
-      inputType: 'insertText',
-      data: char,
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    });
+    if (textBlocks.length > 0) {
+      const lastBlock = textBlocks[textBlocks.length - 1];
+      console.log('Using last text block:', lastBlock);
+      
+      // Try to append to the text block
+      if (lastBlock.textContent !== undefined) {
+        lastBlock.textContent += char;
+        console.log('Text appended to block');
+      }
+    }
     
-    // Dispatch beforeinput event
-    inputArea.dispatchEvent(beforeInputEvent);
+    // Method 2: Use a more comprehensive approach with Google Docs' structure
+    // Try to find the actual content area and insert text there
+    const contentArea = document.querySelector('.kix-appview-editor-content');
+    if (contentArea) {
+      console.log('Found content area:', contentArea);
+      
+      // Try to append text to the content area
+      if (contentArea.textContent !== undefined) {
+        contentArea.textContent += char;
+        console.log('Text appended to content area');
+      }
+    }
     
-    // Method 2: Try to insert text using selection API
+    // Method 3: Use the selection API to insert text at the cursor position
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -181,18 +189,30 @@ function typeCharacter(editor, char) {
       selection.addRange(range);
       
       console.log('Text inserted via selection API');
-    } else {
-      // Fallback: try to append to the editor
-      if (inputArea.textContent !== undefined) {
-        inputArea.textContent += char;
-        console.log('Text appended to editor');
-      }
     }
     
-    // Dispatch input event
-    inputArea.dispatchEvent(inputEvent);
+    // Method 4: Create comprehensive input events that Google Docs should recognize
+    const inputEvent = new InputEvent('input', {
+      inputType: 'insertText',
+      data: char,
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
     
-    // Method 3: Try keyboard events as fallback
+    const beforeInputEvent = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: char,
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
+    
+    // Dispatch events on the text area
+    textArea.dispatchEvent(beforeInputEvent);
+    textArea.dispatchEvent(inputEvent);
+    
+    // Method 5: Try keyboard events as a fallback
     const keyCode = char.charCodeAt(0);
     const keydownEvent = new KeyboardEvent('keydown', {
       key: char,
@@ -224,9 +244,9 @@ function typeCharacter(editor, char) {
       composed: true
     });
     
-    inputArea.dispatchEvent(keydownEvent);
-    inputArea.dispatchEvent(keypressEvent);
-    inputArea.dispatchEvent(keyupEvent);
+    textArea.dispatchEvent(keydownEvent);
+    textArea.dispatchEvent(keypressEvent);
+    textArea.dispatchEvent(keyupEvent);
     
     console.log('Character typing completed');
   } catch (error) {
