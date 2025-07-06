@@ -16,7 +16,8 @@
       "matches": ["https://docs.google.com/document/*"],
       "js": ["content.js"],
       "run_at": "document_end",
-      "all_frames": false
+      "all_frames": false,
+      "world": "MAIN"
     }
   ]
 } 

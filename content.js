@@ -18,51 +18,33 @@ if (window.characterTypingExtensionLoaded) {
     timeoutId: null
   };
 
-// Find the Google Docs editor
+// Find the Google Docs editor - simplified approach
 function findGoogleDocsEditor() {
   console.log('Searching for Google Docs editor...');
   
+  // Wait for Google Docs to fully load
+  if (!document.querySelector('.kix-appview-editor')) {
+    console.log('Google Docs editor not yet loaded, waiting...');
+    return null;
+  }
+  
   // Try to find the actual typing area in Google Docs
+  // Google Docs uses a complex structure, so we need to be more specific
   const selectors = [
-    '.kix-lineview-content',
-    '[contenteditable="true"][role="textbox"]',
+    // Primary selector for the main editor content area
     '.kix-appview-editor',
-    '[data-params*="editor"]',
-    '[aria-label*="document"]',
-    '[contenteditable="true"]',
-    '[role="textbox"]',
-    '.kix-page-content-wrapper',
+    // Alternative selectors
+    '[contenteditable="true"][role="textbox"]',
+    '.kix-lineview-content',
     '.kix-appview-editor-content'
   ];
   
   for (const selector of selectors) {
-    const elements = document.querySelectorAll(selector);
-    console.log(`Selector "${selector}" found ${elements.length} elements`);
-    for (const element of elements) {
-      console.log('Found element:', element);
-      if (element.offsetWidth > 100 && element.offsetHeight > 100) {
-        console.log('Selected editor element:', element);
-        return element;
-      }
-    }
-  }
-  
-  // Fallback: look for any contenteditable element that might be the editor
-  const contentEditables = document.querySelectorAll('[contenteditable="true"]');
-  console.log(`Found ${contentEditables.length} contenteditable elements`);
-  for (const element of contentEditables) {
-    console.log('Contenteditable element:', element, 'size:', element.offsetWidth, 'x', element.offsetHeight);
-    if (element.offsetWidth > 100 && element.offsetHeight > 100) {
-      console.log('Selected fallback editor element:', element);
+    const element = document.querySelector(selector);
+    if (element) {
+      console.log('Found editor element with selector:', selector, element);
       return element;
     }
-  }
-  
-  // Last resort: try to find the main document area
-  const docArea = document.querySelector('.kix-appview-editor');
-  if (docArea) {
-    console.log('Found main document area:', docArea);
-    return docArea;
   }
   
   console.log('No suitable editor found');
@@ -85,64 +67,59 @@ function calculateDelay(wpm) {
 function focusEditor(editor) {
   console.log('Focusing editor:', editor);
   
-  // Focus the editor
-  editor.focus();
-  
-  // Try to position cursor at the end
-  const range = document.createRange();
-  const selection = window.getSelection();
-  
-  // Clear any existing selection
-  selection.removeAllRanges();
-  
-  // Try to find the best position for the cursor
-  if (editor.childNodes.length > 0) {
-    const lastNode = editor.childNodes[editor.childNodes.length - 1];
-    if (lastNode.nodeType === Node.TEXT_NODE) {
-      range.setStart(lastNode, lastNode.textContent.length);
-      range.setEnd(lastNode, lastNode.textContent.length);
+  try {
+    // Focus the editor
+    editor.focus();
+    
+    // Try to position cursor at the end
+    const range = document.createRange();
+    const selection = window.getSelection();
+    
+    // Clear any existing selection
+    selection.removeAllRanges();
+    
+    // Try to find the best position for the cursor
+    if (editor.childNodes.length > 0) {
+      const lastNode = editor.childNodes[editor.childNodes.length - 1];
+      if (lastNode.nodeType === Node.TEXT_NODE) {
+        range.setStart(lastNode, lastNode.textContent.length);
+        range.setEnd(lastNode, lastNode.textContent.length);
+      } else {
+        range.setStartAfter(lastNode);
+        range.setEndAfter(lastNode);
+      }
     } else {
-      range.setStartAfter(lastNode);
-      range.setEndAfter(lastNode);
+      range.setStart(editor, 0);
+      range.setEnd(editor, 0);
     }
-  } else {
-    range.setStart(editor, 0);
-    range.setEnd(editor, 0);
+    
+    // Set the selection
+    selection.addRange(range);
+    
+    // Also try to click in the editor to ensure it's active
+    const rect = editor.getBoundingClientRect();
+    const clickEvent = new MouseEvent('click', {
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+      bubbles: true,
+      cancelable: true
+    });
+    
+    editor.dispatchEvent(clickEvent);
+    
+    console.log('Editor focused and cursor positioned');
+  } catch (error) {
+    console.error('Error focusing editor:', error);
   }
-  
-  // Set the selection
-  selection.addRange(range);
-  
-  // Also try to click in the editor to ensure it's active
-  const rect = editor.getBoundingClientRect();
-  const clickEvent = new MouseEvent('click', {
-    clientX: rect.left + rect.width / 2,
-    clientY: rect.top + rect.height / 2,
-    bubbles: true,
-    cancelable: true
-  });
-  
-  editor.dispatchEvent(clickEvent);
-  
-  console.log('Editor focused and cursor positioned');
 }
 
-// Type a single character
+// Type a single character using a simplified approach
 function typeCharacter(editor, char) {
   console.log('Attempting to type character:', char);
   
   try {
     // Focus the editor first
     editor.focus();
-    
-    // Find the actual Google Docs text area - try multiple selectors
-    const textArea = document.querySelector('.kix-lineview-content') ||
-                    document.querySelector('[contenteditable="true"][role="textbox"]') ||
-                    document.querySelector('.kix-appview-editor-content') ||
-                    document.querySelector('.kix-appview-editor') ||
-                    editor;
-    
-    console.log('Using text area:', textArea);
     
     // Method 1: Try to use execCommand (works in some cases)
     try {
@@ -178,35 +155,12 @@ function typeCharacter(editor, char) {
       console.log('Text inserted via selection API');
     }
     
-    // Method 3: Try to find and modify the actual text content
-    // Look for the text blocks and try to modify them directly
-    const textBlocks = document.querySelectorAll('.kix-lineview-text-block');
-    console.log('Found text blocks:', textBlocks.length);
+    // Method 3: Create comprehensive input events that Google Docs should recognize
+    const textArea = document.querySelector('.kix-lineview-content') ||
+                    document.querySelector('[contenteditable="true"][role="textbox"]') ||
+                    document.querySelector('.kix-appview-editor-content') ||
+                    editor;
     
-    if (textBlocks.length > 0) {
-      const lastBlock = textBlocks[textBlocks.length - 1];
-      console.log('Using last text block:', lastBlock);
-      
-      // Try to append to the text block
-      if (lastBlock.textContent !== undefined) {
-        lastBlock.textContent += char;
-        console.log('Text appended to block');
-      }
-    }
-    
-    // Method 4: Try to find the actual content area
-    const contentArea = document.querySelector('.kix-appview-editor-content');
-    if (contentArea) {
-      console.log('Found content area:', contentArea);
-      
-      // Try to append text to the content area
-      if (contentArea.textContent !== undefined) {
-        contentArea.textContent += char;
-        console.log('Text appended to content area');
-      }
-    }
-    
-    // Method 5: Create comprehensive input events that Google Docs should recognize
     const inputEvent = new InputEvent('input', {
       inputType: 'insertText',
       data: char,
@@ -227,7 +181,7 @@ function typeCharacter(editor, char) {
     textArea.dispatchEvent(beforeInputEvent);
     textArea.dispatchEvent(inputEvent);
     
-    // Method 6: Try keyboard events as a fallback
+    // Method 4: Try keyboard events as a fallback
     const keyCode = char.charCodeAt(0);
     const keydownEvent = new KeyboardEvent('keydown', {
       key: char,
@@ -307,34 +261,37 @@ function typeNextCharacter() {
 function startTyping(text, wpm) {
   console.log('Starting typing with text:', text, 'WPM:', wpm);
   
-  const editor = findGoogleDocsEditor();
-  if (!editor) {
-    console.error('No editor found');
-    return { error: 'Could not find Google Docs editor. Please make sure you are on a Google Docs page.' };
-  }
-  
-  console.log('Found editor:', editor);
-  
-  // Stop any existing typing
-  stopTyping();
-  
-  // Initialize typing state
-  typingState = {
-    isTyping: true,
-    isPaused: false,
-    text: text,
-    currentIndex: 0,
-    wpm: wpm,
-    timeoutId: null
-  };
-  
-  console.log('Typing state initialized:', typingState);
-  
-  // Focus the editor
-  focusEditor(editor);
-  
-  // Start typing
-  typeNextCharacter();
+  // Wait a bit for Google Docs to be ready
+  setTimeout(() => {
+    const editor = findGoogleDocsEditor();
+    if (!editor) {
+      console.error('No editor found');
+      return { error: 'Could not find Google Docs editor. Please make sure you are on a Google Docs page.' };
+    }
+    
+    console.log('Found editor:', editor);
+    
+    // Stop any existing typing
+    stopTyping();
+    
+    // Initialize typing state
+    typingState = {
+      isTyping: true,
+      isPaused: false,
+      text: text,
+      currentIndex: 0,
+      wpm: wpm,
+      timeoutId: null
+    };
+    
+    console.log('Typing state initialized:', typingState);
+    
+    // Focus the editor
+    focusEditor(editor);
+    
+    // Start typing
+    typeNextCharacter();
+  }, 1000); // Wait 1 second for Google Docs to be ready
   
   return { success: true };
 }
