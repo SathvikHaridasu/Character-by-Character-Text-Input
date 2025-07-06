@@ -138,15 +138,28 @@ function typeCharacter(editor, char) {
     // Focus the editor first
     editor.focus();
     
-    // Find the actual Google Docs text area
+    // Find the actual Google Docs text area - try multiple selectors
     const textArea = document.querySelector('.kix-lineview-content') ||
                     document.querySelector('[contenteditable="true"][role="textbox"]') ||
                     document.querySelector('.kix-appview-editor-content') ||
+                    document.querySelector('.kix-appview-editor') ||
                     editor;
     
     console.log('Using text area:', textArea);
     
-    // Method 1: Use the selection API to insert text at the cursor position
+    // Method 1: Try to use execCommand (works in some cases)
+    try {
+      const success = document.execCommand('insertText', false, char);
+      console.log('execCommand result:', success);
+      if (success) {
+        console.log('Text inserted via execCommand');
+        return;
+      }
+    } catch (e) {
+      console.log('execCommand failed:', e);
+    }
+    
+    // Method 2: Use the selection API to insert text at the cursor position
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -168,7 +181,7 @@ function typeCharacter(editor, char) {
       console.log('Text inserted via selection API');
     }
     
-    // Method 2: Try to use Google Docs' actual text insertion method
+    // Method 3: Try to find and modify the actual text content
     // Look for the text blocks and try to modify them directly
     const textBlocks = document.querySelectorAll('.kix-lineview-text-block');
     console.log('Found text blocks:', textBlocks.length);
@@ -184,7 +197,19 @@ function typeCharacter(editor, char) {
       }
     }
     
-    // Method 3: Create comprehensive input events that Google Docs should recognize
+    // Method 4: Try to find the actual content area
+    const contentArea = document.querySelector('.kix-appview-editor-content');
+    if (contentArea) {
+      console.log('Found content area:', contentArea);
+      
+      // Try to append text to the content area
+      if (contentArea.textContent !== undefined) {
+        contentArea.textContent += char;
+        console.log('Text appended to content area');
+      }
+    }
+    
+    // Method 5: Create comprehensive input events that Google Docs should recognize
     const inputEvent = new InputEvent('input', {
       inputType: 'insertText',
       data: char,
@@ -205,7 +230,7 @@ function typeCharacter(editor, char) {
     textArea.dispatchEvent(beforeInputEvent);
     textArea.dispatchEvent(inputEvent);
     
-    // Method 4: Try keyboard events as a fallback
+    // Method 6: Try keyboard events as a fallback
     const keyCode = char.charCodeAt(0);
     const keydownEvent = new KeyboardEvent('keydown', {
       key: char,

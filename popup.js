@@ -131,7 +131,7 @@ startBtn.addEventListener('click', async () => {
         });
       }, 500);
     });
-  });
+  });   
 });
 
 pauseBtn.addEventListener('click', () => {
