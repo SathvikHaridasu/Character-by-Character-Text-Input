@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Character-by-Character Input</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="container">
+    <h2>Type in Google Docs</h2>
+    <textarea id="inputText" maxlength="1000" placeholder="Paste your text (max 1000 chars, no line breaks)" rows="2"></textarea>
+    <div class="slider-group">
+      <label for="wpm">Speed: <span id="wpmValue">60</span> WPM</label>
+      <input type="range" id="wpm" min="10" max="200" value="60">
+    </div>
+    <div class="button-group">
+      <button id="startBtn">Start Typing</button>
+      <button id="pauseBtn" disabled>Pause</button>
+      <button id="resumeBtn" disabled>Resume</button>
+      <button id="stopBtn" disabled>Stop</button>
+    </div>
+    <div id="error" class="error"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html> 

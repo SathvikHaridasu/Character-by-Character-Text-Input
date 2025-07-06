@@ -1,0 +1,43 @@
+#container {
+  width: 300px;
+  padding: 16px;
+  font-family: Arial, sans-serif;
+}
+h2 {
+  margin-top: 0;
+  font-size: 1.2em;
+}
+textarea {
+  width: 100%;
+  resize: none;
+  font-size: 1em;
+  margin-bottom: 10px;
+}
+.slider-group {
+  margin-bottom: 12px;
+}
+#wpm {
+  width: 100%;
+}
+.button-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+button {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 1em;
+  cursor: pointer;
+}
+button:disabled {
+  background: #eee;
+  color: #aaa;
+  cursor: not-allowed;
+}
+.error {
+  color: #b00020;
+  font-size: 0.95em;
+  min-height: 18px;
+  margin-top: 4px;
+} 
