@@ -66,6 +66,58 @@ function setButtons(state) {
 
 setButtons('idle');
 
+// Helper function to ensure content script is injected
+async function ensureContentScriptInjected(tabId) {
+  try {
+    // Try to inject the content script
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['content.js']
+    });
+    console.log('Content script injected successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to inject content script:', error);
+    return false;
+  }
+}
+
+// Helper function to send message with retry
+async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      // First, ensure content script is injected
+      await ensureContentScriptInjected(tabId);
+      
+      // Wait a bit for the content script to initialize
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Send the message
+      return new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, message, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error(`Attempt ${i + 1} failed:`, chrome.runtime.lastError);
+            if (i === maxRetries - 1) {
+              reject(chrome.runtime.lastError);
+            } else {
+              // Wait before retry
+              setTimeout(() => resolve(null), 1000);
+            }
+          } else {
+            resolve(response);
+          }
+        });
+      });
+    } catch (error) {
+      if (i === maxRetries - 1) {
+        throw error;
+      }
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+}
+
 startBtn.addEventListener('click', async () => {
   clearError();
   const text = inputText.value;
@@ -84,8 +136,9 @@ startBtn.addEventListener('click', async () => {
   
   console.log('Start button clicked, text:', text);
   
-  // Check if on Google Docs
-  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+  try {
+    // Check if on Google Docs
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
     const tab = tabs[0];
     console.log('Current tab:', tab);
     
@@ -95,75 +148,87 @@ startBtn.addEventListener('click', async () => {
     }
     
     console.log('Sending message to content script...');
-    chrome.tabs.sendMessage(tab.id, {
+    const response = await sendMessageWithRetry(tab.id, {
       action: 'start',
       text,
       wpm: parseInt(wpm.value, 10)
-    }, (response) => {
-      console.log('Response from content script:', response);
-      console.log('Chrome runtime error:', chrome.runtime.lastError);
-      
-      if (chrome.runtime.lastError) {
-        console.error('Communication error:', chrome.runtime.lastError);
-        const errorMessage = chrome.runtime.lastError.message || 'Unknown error';
-        showError(`Could not communicate with content script: ${errorMessage}. Please refresh the page and try again.`);
-        return;
-      }
-      if (response && response.error) {
-        showError(response.error);
-        return;
-      }
-      setButtons('typing');
-      inputText.value = '';
-      
-      // Set up a listener to detect when typing completes
-      const checkCompletion = setInterval(() => {
-        chrome.tabs.sendMessage(tab.id, {action: 'status'}, (response) => {
-          if (chrome.runtime.lastError) {
-            clearInterval(checkCompletion);
-            return;
-          }
-          if (response && !response.isTyping) {
-            clearInterval(checkCompletion);
-            setButtons('idle');
-            showError('🎉 Typing completed!', true);
-            setTimeout(clearError, 3000);
-          }
-        });
-      }, 500);
     });
-  });   
-});
-
-pauseBtn.addEventListener('click', () => {
-  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-    const tab = tabs[0];
-    chrome.tabs.sendMessage(tab.id, {action: 'pause'});
-    setButtons('paused');
-  });
-});
-
-resumeBtn.addEventListener('click', () => {
-  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-    const tab = tabs[0];
-    chrome.tabs.sendMessage(tab.id, {action: 'resume'});
+    
+    console.log('Response from content script:', response);
+    
+    if (response && response.error) {
+      showError(response.error);
+      return;
+    }
+    
     setButtons('typing');
-  });
+    inputText.value = '';
+    
+    // Set up a listener to detect when typing completes
+    const checkCompletion = setInterval(async () => {
+      try {
+        const statusResponse = await sendMessageWithRetry(tab.id, {action: 'status'});
+        if (statusResponse && !statusResponse.isTyping) {
+          clearInterval(checkCompletion);
+          setButtons('idle');
+          showError('🎉 Typing completed!', true);
+          setTimeout(clearError, 3000);
+        }
+      } catch (error) {
+        clearInterval(checkCompletion);
+        console.error('Error checking status:', error);
+      }
+    }, 500);
+    
+  } catch (error) {
+    console.error('Communication error:', error);
+    const errorMessage = error.message || 'Unknown error';
+    showError(`Could not communicate with content script: ${errorMessage}. Please refresh the page and try again.`);
+  }
 });
 
-stopBtn.addEventListener('click', () => {
-  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+pauseBtn.addEventListener('click', async () => {
+  try {
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
     const tab = tabs[0];
-    chrome.tabs.sendMessage(tab.id, {action: 'stop'});
-    setButtons('idle');
-  });
+    await sendMessageWithRetry(tab.id, {action: 'pause'});
+    setButtons('paused');
+  } catch (error) {
+    console.error('Error pausing:', error);
+    showError('Failed to pause typing. Please try again.');
+  }
 });
 
-testBtn.addEventListener('click', () => {
+resumeBtn.addEventListener('click', async () => {
+  try {
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+    const tab = tabs[0];
+    await sendMessageWithRetry(tab.id, {action: 'resume'});
+    setButtons('typing');
+  } catch (error) {
+    console.error('Error resuming:', error);
+    showError('Failed to resume typing. Please try again.');
+  }
+});
+
+stopBtn.addEventListener('click', async () => {
+  try {
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+    const tab = tabs[0];
+    await sendMessageWithRetry(tab.id, {action: 'stop'});
+    setButtons('idle');
+  } catch (error) {
+    console.error('Error stopping:', error);
+    showError('Failed to stop typing. Please try again.');
+  }
+});
+
+testBtn.addEventListener('click', async () => {
   console.log('Test button clicked');
   clearError();
   
-  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+  try {
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
     const tab = tabs[0];
     console.log('Testing connection to tab:', tab);
     
@@ -173,21 +238,21 @@ testBtn.addEventListener('click', () => {
     }
     
     console.log('Sending ping to content script...');
-    chrome.tabs.sendMessage(tab.id, {action: 'ping'}, (response) => {
-      console.log('Ping response:', response);
-      console.log('Ping error:', chrome.runtime.lastError);
-      
-      if (chrome.runtime.lastError) {
-        console.error('Ping failed:', chrome.runtime.lastError);
-        const errorMessage = chrome.runtime.lastError.message || 'Unknown error';
-        showError(`Content script not responding: ${errorMessage}. Please refresh the page and try again.`);
-      } else if (response && response.message === 'pong') {
-        console.log('✅ Content script is working!');
-        showError('✅ Connection successful! Content script is working.', true);
-        setTimeout(clearError, 2000);
-      } else {
-        showError('Unexpected response from content script.');
-      }
-    });
-  });
+    const response = await sendMessageWithRetry(tab.id, {action: 'ping'});
+    
+    console.log('Ping response:', response);
+    
+    if (response && response.message === 'pong') {
+      console.log('✅ Content script is working!');
+      showError('✅ Connection successful! Content script is working.', true);
+      setTimeout(clearError, 2000);
+    } else {
+      showError('Unexpected response from content script.');
+    }
+    
+  } catch (error) {
+    console.error('Ping failed:', error);
+    const errorMessage = error.message || 'Unknown error';
+    showError(`Content script not responding: ${errorMessage}. Please refresh the page and try again.`);
+  }
 }); 
