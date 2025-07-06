@@ -332,6 +332,12 @@ function stopTyping() {
 
 // Setup message listener
 function setupMessageListener() {
+  // Check if Chrome APIs are available
+  if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.onMessage) {
+    console.error('Chrome APIs not available in content script');
+    return;
+  }
+  
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Content script received message:', request);
     

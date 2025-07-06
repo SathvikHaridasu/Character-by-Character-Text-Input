@@ -12,8 +12,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     // Always try to inject the content script
     chrome.scripting.executeScript({
       target: { tabId: tabId },
-      files: ['content.js'],
-      world: 'MAIN'
+      files: ['content.js']
     }).then(() => {
       console.log('Content script injected successfully');
       
