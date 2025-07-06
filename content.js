@@ -3,8 +3,14 @@
 // Check if content script is already loaded to prevent duplicate injection
 if (window.characterTypingExtensionLoaded) {
   console.log('Content script already loaded, skipping...');
+  // Still need to respond to messages even if already loaded
+  if (!window.characterTypingMessageListener) {
+    window.characterTypingMessageListener = true;
+    setupMessageListener();
+  }
 } else {
   window.characterTypingExtensionLoaded = true;
+  window.characterTypingMessageListener = true;
   
   let typingState = {
     isTyping: false,
@@ -140,36 +146,7 @@ function typeCharacter(editor, char) {
     
     console.log('Using text area:', textArea);
     
-    // Method 1: Try to use Google Docs' actual text insertion method
-    // Look for the text blocks and try to modify them directly
-    const textBlocks = document.querySelectorAll('.kix-lineview-text-block');
-    console.log('Found text blocks:', textBlocks.length);
-    
-    if (textBlocks.length > 0) {
-      const lastBlock = textBlocks[textBlocks.length - 1];
-      console.log('Using last text block:', lastBlock);
-      
-      // Try to append to the text block
-      if (lastBlock.textContent !== undefined) {
-        lastBlock.textContent += char;
-        console.log('Text appended to block');
-      }
-    }
-    
-    // Method 2: Use a more comprehensive approach with Google Docs' structure
-    // Try to find the actual content area and insert text there
-    const contentArea = document.querySelector('.kix-appview-editor-content');
-    if (contentArea) {
-      console.log('Found content area:', contentArea);
-      
-      // Try to append text to the content area
-      if (contentArea.textContent !== undefined) {
-        contentArea.textContent += char;
-        console.log('Text appended to content area');
-      }
-    }
-    
-    // Method 3: Use the selection API to insert text at the cursor position
+    // Method 1: Use the selection API to insert text at the cursor position
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -191,7 +168,23 @@ function typeCharacter(editor, char) {
       console.log('Text inserted via selection API');
     }
     
-    // Method 4: Create comprehensive input events that Google Docs should recognize
+    // Method 2: Try to use Google Docs' actual text insertion method
+    // Look for the text blocks and try to modify them directly
+    const textBlocks = document.querySelectorAll('.kix-lineview-text-block');
+    console.log('Found text blocks:', textBlocks.length);
+    
+    if (textBlocks.length > 0) {
+      const lastBlock = textBlocks[textBlocks.length - 1];
+      console.log('Using last text block:', lastBlock);
+      
+      // Try to append to the text block
+      if (lastBlock.textContent !== undefined) {
+        lastBlock.textContent += char;
+        console.log('Text appended to block');
+      }
+    }
+    
+    // Method 3: Create comprehensive input events that Google Docs should recognize
     const inputEvent = new InputEvent('input', {
       inputType: 'insertText',
       data: char,
@@ -212,7 +205,7 @@ function typeCharacter(editor, char) {
     textArea.dispatchEvent(beforeInputEvent);
     textArea.dispatchEvent(inputEvent);
     
-    // Method 5: Try keyboard events as a fallback
+    // Method 4: Try keyboard events as a fallback
     const keyCode = char.charCodeAt(0);
     const keydownEvent = new KeyboardEvent('keydown', {
       key: char,
@@ -358,48 +351,53 @@ function stopTyping() {
   };
 }
 
-// Listen for messages from popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Content script received message:', request);
-  
-  switch (request.action) {
-    case 'ping':
-      console.log('Ping received, responding with pong');
-      sendResponse({ message: 'pong', timestamp: Date.now() });
-      break;
-      
-    case 'start':
-      const result = startTyping(request.text, request.wpm);
-      sendResponse(result);
-      break;
-      
-    case 'pause':
-      pauseTyping();
-      sendResponse({ success: true });
-      break;
-      
-    case 'resume':
-      resumeTyping();
-      sendResponse({ success: true });
-      break;
-      
-    case 'stop':
-      stopTyping();
-      sendResponse({ success: true });
-      break;
-      
-    case 'status':
-      sendResponse({ isTyping: typingState.isTyping });
-      break;
-      
-    default:
-      sendResponse({ error: 'Unknown action' });
-  }
-  
-  return true; // Keep message channel open for async response
-});
+// Setup message listener
+function setupMessageListener() {
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('Content script received message:', request);
+    
+    switch (request.action) {
+      case 'ping':
+        console.log('Ping received, responding with pong');
+        sendResponse({ message: 'pong', timestamp: Date.now() });
+        break;
+        
+      case 'start':
+        const result = startTyping(request.text, request.wpm);
+        sendResponse(result);
+        break;
+        
+      case 'pause':
+        pauseTyping();
+        sendResponse({ success: true });
+        break;
+        
+      case 'resume':
+        resumeTyping();
+        sendResponse({ success: true });
+        break;
+        
+      case 'stop':
+        stopTyping();
+        sendResponse({ success: true });
+        break;
+        
+      case 'status':
+        sendResponse({ isTyping: typingState.isTyping });
+        break;
+        
+      default:
+        sendResponse({ error: 'Unknown action' });
+    }
+    
+    return true; // Keep message channel open for async response
+  });
+}
 
   console.log('Character-by-Character Text Input content script loaded');
+  
+  // Setup message listener
+  setupMessageListener();
 
   // Add a simple test to verify the content script is working
   window.addEventListener('load', () => {
