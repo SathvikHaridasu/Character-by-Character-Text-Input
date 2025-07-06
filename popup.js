@@ -93,23 +93,24 @@ async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Send the message
-      return new Promise((resolve, reject) => {
+      const response = await new Promise((resolve, reject) => {
         chrome.tabs.sendMessage(tabId, message, (response) => {
           if (chrome.runtime.lastError) {
             console.error(`Attempt ${i + 1} failed:`, chrome.runtime.lastError);
-            if (i === maxRetries - 1) {
-              reject(chrome.runtime.lastError);
-            } else {
-              // Wait before retry
-              setTimeout(() => resolve(null), 1000);
-            }
+            reject(chrome.runtime.lastError);
           } else {
             resolve(response);
           }
         });
       });
+      
+      // If we get here, the message was successful
+      return response;
+      
     } catch (error) {
+      console.error(`Attempt ${i + 1} failed:`, error);
       if (i === maxRetries - 1) {
+        // This was the last attempt, throw the error
         throw error;
       }
       // Wait before retry
