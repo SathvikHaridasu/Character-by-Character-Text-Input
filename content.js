@@ -19,14 +19,14 @@ if (window.characterTypingExtensionLoaded) {
 function findGoogleDocsEditor() {
   console.log('Searching for Google Docs editor...');
   
-  // Try multiple selectors for Google Docs editor
+  // Try to find the actual typing area in Google Docs
   const selectors = [
+    '.kix-lineview-content',
     '[contenteditable="true"][role="textbox"]',
     '.kix-appview-editor',
     '[data-params*="editor"]',
     '[aria-label*="document"]',
     '[contenteditable="true"]',
-    '.kix-lineview-content',
     '[role="textbox"]',
     '.kix-page-content-wrapper',
     '.kix-appview-editor-content'
@@ -80,12 +80,19 @@ function calculateDelay(wpm) {
 
 // Focus and position cursor in the editor
 function focusEditor(editor) {
+  console.log('Focusing editor:', editor);
+  
+  // Focus the editor
   editor.focus();
   
   // Try to position cursor at the end
   const range = document.createRange();
   const selection = window.getSelection();
   
+  // Clear any existing selection
+  selection.removeAllRanges();
+  
+  // Try to find the best position for the cursor
   if (editor.childNodes.length > 0) {
     const lastNode = editor.childNodes[editor.childNodes.length - 1];
     if (lastNode.nodeType === Node.TEXT_NODE) {
@@ -100,8 +107,21 @@ function focusEditor(editor) {
     range.setEnd(editor, 0);
   }
   
-  selection.removeAllRanges();
+  // Set the selection
   selection.addRange(range);
+  
+  // Also try to click in the editor to ensure it's active
+  const rect = editor.getBoundingClientRect();
+  const clickEvent = new MouseEvent('click', {
+    clientX: rect.left + rect.width / 2,
+    clientY: rect.top + rect.height / 2,
+    bubbles: true,
+    cancelable: true
+  });
+  
+  editor.dispatchEvent(clickEvent);
+  
+  console.log('Editor focused and cursor positioned');
 }
 
 // Type a single character
@@ -112,10 +132,68 @@ function typeCharacter(editor, char) {
     // Focus the editor first
     editor.focus();
     
-    // Create a more comprehensive keyboard event simulation
-    const keyCode = char.charCodeAt(0);
+    // Method 1: Try to use Google Docs' own input method
+    // Look for the actual input area within Google Docs
+    const inputArea = document.querySelector('.kix-lineview-content') || 
+                     document.querySelector('[contenteditable="true"]') ||
+                     editor;
     
-    // Keydown event
+    console.log('Using input area:', inputArea);
+    
+    // Create a more realistic input event
+    const inputEvent = new InputEvent('input', {
+      inputType: 'insertText',
+      data: char,
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
+    
+    // Create beforeinput event
+    const beforeInputEvent = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: char,
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
+    
+    // Dispatch beforeinput event
+    inputArea.dispatchEvent(beforeInputEvent);
+    
+    // Method 2: Try to insert text using selection API
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      // Create a text node with the character
+      const textNode = document.createTextNode(char);
+      
+      // Insert the text
+      range.insertNode(textNode);
+      
+      // Move cursor after the inserted text
+      range.setStartAfter(textNode);
+      range.setEndAfter(textNode);
+      
+      // Update selection
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      console.log('Text inserted via selection API');
+    } else {
+      // Fallback: try to append to the editor
+      if (inputArea.textContent !== undefined) {
+        inputArea.textContent += char;
+        console.log('Text appended to editor');
+      }
+    }
+    
+    // Dispatch input event
+    inputArea.dispatchEvent(inputEvent);
+    
+    // Method 3: Try keyboard events as fallback
+    const keyCode = char.charCodeAt(0);
     const keydownEvent = new KeyboardEvent('keydown', {
       key: char,
       code: char.length === 1 ? `Key${char.toUpperCase()}` : 'Key' + char,
@@ -123,11 +201,9 @@ function typeCharacter(editor, char) {
       which: keyCode,
       bubbles: true,
       cancelable: true,
-      composed: true,
-      isTrusted: false
+      composed: true
     });
     
-    // Keypress event
     const keypressEvent = new KeyboardEvent('keypress', {
       key: char,
       code: char.length === 1 ? `Key${char.toUpperCase()}` : 'Key' + char,
@@ -135,11 +211,9 @@ function typeCharacter(editor, char) {
       which: keyCode,
       bubbles: true,
       cancelable: true,
-      composed: true,
-      isTrusted: false
+      composed: true
     });
     
-    // Keyup event
     const keyupEvent = new KeyboardEvent('keyup', {
       key: char,
       code: char.length === 1 ? `Key${char.toUpperCase()}` : 'Key' + char,
@@ -147,61 +221,14 @@ function typeCharacter(editor, char) {
       which: keyCode,
       bubbles: true,
       cancelable: true,
-      composed: true,
-      isTrusted: false
+      composed: true
     });
     
-    // Dispatch events on the document to ensure they bubble properly
-    document.dispatchEvent(keydownEvent);
-    document.dispatchEvent(keypressEvent);
+    inputArea.dispatchEvent(keydownEvent);
+    inputArea.dispatchEvent(keypressEvent);
+    inputArea.dispatchEvent(keyupEvent);
     
-    // Try to insert the character using multiple methods
-    let inserted = false;
-    
-    // Method 1: execCommand
-    try {
-      inserted = document.execCommand('insertText', false, char);
-      console.log('execCommand result:', inserted);
-    } catch (e) {
-      console.log('execCommand failed:', e);
-    }
-    
-    // Method 2: If execCommand failed, try direct insertion
-    if (!inserted) {
-      try {
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          range.deleteContents();
-          range.insertNode(document.createTextNode(char));
-          range.collapse(false);
-          selection.removeAllRanges();
-          selection.addRange(range);
-          inserted = true;
-          console.log('Direct insertion successful');
-        }
-      } catch (e) {
-        console.log('Direct insertion failed:', e);
-      }
-    }
-    
-    // Method 3: If still not inserted, try clipboard
-    if (!inserted) {
-      try {
-        navigator.clipboard.writeText(char).then(() => {
-          document.execCommand('paste');
-          console.log('Clipboard insertion successful');
-        }).catch((e) => {
-          console.log('Clipboard insertion failed:', e);
-        });
-      } catch (e) {
-        console.log('Clipboard method failed:', e);
-      }
-    }
-    
-    document.dispatchEvent(keyupEvent);
-    
-    console.log('Character typing attempt completed');
+    console.log('Character typing completed');
   } catch (error) {
     console.error('Error typing character:', error);
   }
