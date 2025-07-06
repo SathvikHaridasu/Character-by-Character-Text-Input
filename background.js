@@ -7,16 +7,24 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && 
       tab.url && 
       tab.url.startsWith('https://docs.google.com/document/')) {
-    console.log('Google Docs page loaded, ensuring content script is injected');
+    console.log('Google Docs page loaded, checking if content script is needed');
     
-    // Inject content script if not already present
-    chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      files: ['content.js']
-    }).then(() => {
-      console.log('Content script injected successfully');
-    }).catch((error) => {
-      console.error('Failed to inject content script:', error);
+    // First check if content script is already injected
+    chrome.tabs.sendMessage(tabId, {action: 'ping'}, (response) => {
+      if (chrome.runtime.lastError) {
+        // Content script not present, inject it
+        console.log('Content script not found, injecting...');
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        }).then(() => {
+          console.log('Content script injected successfully');
+        }).catch((error) => {
+          console.error('Failed to inject content script:', error);
+        });
+      } else {
+        console.log('Content script already present, skipping injection');
+      }
     });
   }
 });

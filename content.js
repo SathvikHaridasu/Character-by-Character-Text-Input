@@ -1,13 +1,19 @@
 // Content script for Google Docs typing simulation
 
-let typingState = {
-  isTyping: false,
-  isPaused: false,
-  text: '',
-  currentIndex: 0,
-  wpm: 60,
-  timeoutId: null
-};
+// Check if content script is already loaded to prevent duplicate injection
+if (window.characterTypingExtensionLoaded) {
+  console.log('Content script already loaded, skipping...');
+} else {
+  window.characterTypingExtensionLoaded = true;
+  
+  let typingState = {
+    isTyping: false,
+    isPaused: false,
+    text: '',
+    currentIndex: 0,
+    wpm: 60,
+    timeoutId: null
+  };
 
 // Find the Google Docs editor
 function findGoogleDocsEditor() {
@@ -346,17 +352,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true; // Keep message channel open for async response
 });
 
-console.log('Character-by-Character Text Input content script loaded');
+  console.log('Character-by-Character Text Input content script loaded');
 
-// Add a simple test to verify the content script is working
-window.addEventListener('load', () => {
-  console.log('Page fully loaded, content script is active');
-  
-  // Test if we can find the Google Docs editor
-  const editor = findGoogleDocsEditor();
-  if (editor) {
-    console.log('✅ Google Docs editor found:', editor);
-  } else {
-    console.log('❌ Google Docs editor not found');
-  }
-}); 
+  // Add a simple test to verify the content script is working
+  window.addEventListener('load', () => {
+    console.log('Page fully loaded, content script is active');
+    
+    // Test if we can find the Google Docs editor
+    const editor = findGoogleDocsEditor();
+    if (editor) {
+      console.log('✅ Google Docs editor found:', editor);
+    } else {
+      console.log('❌ Google Docs editor not found');
+    }
+  });
+} 
