@@ -1,16 +1,13 @@
 // Content script for Google Docs typing simulation
 
-// Check if content script is already loaded to prevent duplicate injection
+// Initialize the extension
+console.log('Character-by-Character Text Input content script loading...');
+
+// Check if already loaded
 if (window.characterTypingExtensionLoaded) {
   console.log('Content script already loaded, skipping...');
-  // Still need to respond to messages even if already loaded
-  if (!window.characterTypingMessageListener) {
-    window.characterTypingMessageListener = true;
-    setupMessageListener();
-  }
 } else {
   window.characterTypingExtensionLoaded = true;
-  window.characterTypingMessageListener = true;
   
   let typingState = {
     isTyping: false,
@@ -421,9 +418,6 @@ function setupMessageListener() {
 
   console.log('Character-by-Character Text Input content script loaded');
   
-  // Setup message listener
-  setupMessageListener();
-
   // Add a simple test to verify the content script is working
   window.addEventListener('load', () => {
     console.log('Page fully loaded, content script is active');
@@ -436,4 +430,11 @@ function setupMessageListener() {
       console.log('❌ Google Docs editor not found');
     }
   });
+}
+
+// Always setup message listener (even if already loaded)
+if (!window.characterTypingMessageListener) {
+  window.characterTypingMessageListener = true;
+  setupMessageListener();
+  console.log('Message listener setup complete');
 } 

@@ -105,7 +105,8 @@ startBtn.addEventListener('click', async () => {
       
       if (chrome.runtime.lastError) {
         console.error('Communication error:', chrome.runtime.lastError);
-        showError('Could not communicate with content script. Please refresh the page and try again.');
+        const errorMessage = chrome.runtime.lastError.message || 'Unknown error';
+        showError(`Could not communicate with content script: ${errorMessage}. Please refresh the page and try again.`);
         return;
       }
       if (response && response.error) {
@@ -178,7 +179,8 @@ testBtn.addEventListener('click', () => {
       
       if (chrome.runtime.lastError) {
         console.error('Ping failed:', chrome.runtime.lastError);
-        showError('Content script not responding. Please refresh the page.');
+        const errorMessage = chrome.runtime.lastError.message || 'Unknown error';
+        showError(`Content script not responding: ${errorMessage}. Please refresh the page and try again.`);
       } else if (response && response.message === 'pong') {
         console.log('✅ Content script is working!');
         showError('✅ Connection successful! Content script is working.', true);
