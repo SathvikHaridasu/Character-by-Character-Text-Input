@@ -5,23 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Character-by-Character Input</title>
   <link rel="stylesheet" href="popup.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
   <div id="container">
-    <h2>Type in Google Docs</h2>
-    <textarea id="inputText" maxlength="1000" placeholder="Paste your text (max 1000 chars, no line breaks)" rows="2"></textarea>
+    <h2><i class="fas fa-keyboard"></i> Type in Google Docs</h2>
+    <textarea id="inputText" maxlength="1000" placeholder="Paste your text here (max 1000 characters, no line breaks)" rows="3"></textarea>
+    <div class="char-count">
+      <span id="charCount">0</span> / 1000 characters
+    </div>
     <div class="slider-group">
-      <label for="wpm">Speed: <span id="wpmValue">60</span> WPM</label>
+      <label for="wpm"><i class="fas fa-tachometer-alt"></i> Speed: <span id="wpmValue">60</span> WPM</label>
       <input type="range" id="wpm" min="10" max="200" value="60">
     </div>
     <div class="button-group">
-      <button id="startBtn">Start Typing</button>
-      <button id="pauseBtn" disabled>Pause</button>
-      <button id="resumeBtn" disabled>Resume</button>
-      <button id="stopBtn" disabled>Stop</button>
+      <button id="startBtn"><i class="fas fa-play"></i> Start Typing</button>
     </div>
     <div class="button-group">
-      <button id="testBtn">Test Connection</button>
+      <button id="pauseBtn" disabled><i class="fas fa-pause"></i> Pause</button>
+      <button id="resumeBtn" disabled><i class="fas fa-play"></i> Resume</button>
+      <button id="stopBtn" disabled><i class="fas fa-stop"></i> Stop</button>
+    </div>
+    <div class="button-group">
+      <button id="testBtn"><i class="fas fa-wifi"></i> Test Connection</button>
     </div>
     <div id="error" class="error"></div>
   </div>

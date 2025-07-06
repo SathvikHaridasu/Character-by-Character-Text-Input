@@ -8,12 +8,17 @@ const resumeBtn = document.getElementById('resumeBtn');
 const stopBtn = document.getElementById('stopBtn');
 const testBtn = document.getElementById('testBtn');
 const errorDiv = document.getElementById('error');
+const charCount = document.getElementById('charCount');
 
-function showError(msg) {
+function showError(msg, isSuccess = false) {
   errorDiv.textContent = msg;
+  errorDiv.className = isSuccess ? 'error success' : 'error';
+  errorDiv.style.display = 'block';
 }
+
 function clearError() {
   errorDiv.textContent = '';
+  errorDiv.style.display = 'none';
 }
 
 wpm.addEventListener('input', () => {
@@ -21,9 +26,13 @@ wpm.addEventListener('input', () => {
 });
 
 inputText.addEventListener('input', () => {
-  if (inputText.value.length > 1000) {
+  const length = inputText.value.length;
+  charCount.textContent = length;
+  
+  if (length > 1000) {
     showError('Maximum 1000 characters allowed.');
     inputText.value = inputText.value.slice(0, 1000);
+    charCount.textContent = '1000';
   } else if (/\n/.test(inputText.value)) {
     showError('No line breaks allowed.');
     inputText.value = inputText.value.replace(/\n/g, ' ');
@@ -39,16 +48,19 @@ function setButtons(state) {
     pauseBtn.disabled = true;
     resumeBtn.disabled = true;
     stopBtn.disabled = true;
+    document.body.classList.remove('typing');
   } else if (state === 'typing') {
     startBtn.disabled = true;
     pauseBtn.disabled = false;
     resumeBtn.disabled = true;
     stopBtn.disabled = false;
+    document.body.classList.add('typing');
   } else if (state === 'paused') {
     startBtn.disabled = true;
     pauseBtn.disabled = true;
     resumeBtn.disabled = false;
     stopBtn.disabled = false;
+    document.body.classList.remove('typing');
   }
 }
 
@@ -113,8 +125,8 @@ startBtn.addEventListener('click', async () => {
           if (response && !response.isTyping) {
             clearInterval(checkCompletion);
             setButtons('idle');
-            showError('Typing completed!');
-            setTimeout(clearError, 2000);
+            showError('🎉 Typing completed!', true);
+            setTimeout(clearError, 3000);
           }
         });
       }, 500);
@@ -169,7 +181,7 @@ testBtn.addEventListener('click', () => {
         showError('Content script not responding. Please refresh the page.');
       } else if (response && response.message === 'pong') {
         console.log('✅ Content script is working!');
-        showError('✅ Connection successful! Content script is working.');
+        showError('✅ Connection successful! Content script is working.', true);
         setTimeout(clearError, 2000);
       } else {
         showError('Unexpected response from content script.');
