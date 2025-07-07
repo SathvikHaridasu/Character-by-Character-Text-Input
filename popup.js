@@ -86,19 +86,26 @@ async function ensureContentScriptInjected(tabId) {
 async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     try {
+      console.log(`Attempt ${i + 1}: Injecting content script...`);
       // First, ensure content script is injected
-      await ensureContentScriptInjected(tabId);
+      const injected = await ensureContentScriptInjected(tabId);
+      if (!injected) {
+        throw new Error('Failed to inject content script');
+      }
       
       // Wait a bit for the content script to initialize
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log(`Attempt ${i + 1}: Waiting for content script to initialize...`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Send the message
+      console.log(`Attempt ${i + 1}: Sending message:`, message);
       const response = await new Promise((resolve, reject) => {
         chrome.tabs.sendMessage(tabId, message, (response) => {
           if (chrome.runtime.lastError) {
-            console.error(`Attempt ${i + 1} failed:`, chrome.runtime.lastError);
-            reject(chrome.runtime.lastError);
+            console.error(`Attempt ${i + 1} failed with runtime error:`, chrome.runtime.lastError);
+            reject(new Error(`Runtime error: ${chrome.runtime.lastError.message}`));
           } else {
+            console.log(`Attempt ${i + 1} succeeded with response:`, response);
             resolve(response);
           }
         });
@@ -114,7 +121,8 @@ async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
         throw error;
       }
       // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`Waiting 2 seconds before retry...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 }
@@ -248,12 +256,16 @@ testBtn.addEventListener('click', async () => {
       showError('✅ Connection successful! Content script is working.', true);
       setTimeout(clearError, 2000);
     } else {
-      showError('Unexpected response from content script.');
+      showError(`Unexpected response from content script: ${JSON.stringify(response)}`);
     }
     
   } catch (error) {
     console.error('Ping failed:', error);
     const errorMessage = error.message || 'Unknown error';
     showError(`Content script not responding: ${errorMessage}. Please refresh the page and try again.`);
+    
+    // Additional debugging info
+    console.log('Full error object:', error);
+    console.log('Error stack:', error.stack);
   }
 }); 

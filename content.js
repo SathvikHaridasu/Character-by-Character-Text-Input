@@ -3,20 +3,14 @@
 // Initialize the extension
 console.log('Character-by-Character Text Input content script loading...');
 
-// Check if already loaded
-if (window.characterTypingExtensionLoaded) {
-  console.log('Content script already loaded, skipping...');
-} else {
-  window.characterTypingExtensionLoaded = true;
-  
-  let typingState = {
-    isTyping: false,
-    isPaused: false,
-    text: '',
-    currentIndex: 0,
-    wpm: 60,
-    timeoutId: null
-  };
+let typingState = {
+  isTyping: false,
+  isPaused: false,
+  text: '',
+  currentIndex: 0,
+  wpm: 60,
+  timeoutId: null
+};
 
 // Find the Google Docs editor - simplified approach
 function findGoogleDocsEditor() {
@@ -332,6 +326,8 @@ function stopTyping() {
 
 // Setup message listener
 function setupMessageListener() {
+  console.log('Setting up message listener...');
+  
   // Check if Chrome APIs are available
   if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.onMessage) {
     console.error('Chrome APIs not available in content script');
@@ -377,27 +373,25 @@ function setupMessageListener() {
     
     return true; // Keep message channel open for async response
   });
-}
-
-  console.log('Character-by-Character Text Input content script loaded');
   
-  // Add a simple test to verify the content script is working
-  window.addEventListener('load', () => {
-    console.log('Page fully loaded, content script is active');
-    
-    // Test if we can find the Google Docs editor
-    const editor = findGoogleDocsEditor();
-    if (editor) {
-      console.log('✅ Google Docs editor found:', editor);
-    } else {
-      console.log('❌ Google Docs editor not found');
-    }
-  });
+  console.log('Message listener setup complete');
 }
 
-// Always setup message listener (even if already loaded)
-if (!window.characterTypingMessageListener) {
-  window.characterTypingMessageListener = true;
-  setupMessageListener();
-  console.log('Message listener setup complete');
-} 
+// Initialize the content script
+console.log('Character-by-Character Text Input content script loaded');
+
+// Setup message listener immediately
+setupMessageListener();
+
+// Add a simple test to verify the content script is working
+window.addEventListener('load', () => {
+  console.log('Page fully loaded, content script is active');
+  
+  // Test if we can find the Google Docs editor
+  const editor = findGoogleDocsEditor();
+  if (editor) {
+    console.log('✅ Google Docs editor found:', editor);
+  } else {
+    console.log('❌ Google Docs editor not found');
+  }
+}); 
