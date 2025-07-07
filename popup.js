@@ -69,15 +69,70 @@ setButtons('idle');
 // Helper function to ensure content script is injected
 async function ensureContentScriptInjected(tabId) {
   try {
+    console.log('Attempting to inject content script into tab:', tabId);
+    
+    // First, check if content script is already injected by trying to send a ping
+    try {
+      const pingResponse = await new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, {action: 'ping'}, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve(response);
+          }
+        });
+      });
+      
+      if (pingResponse && pingResponse.message === 'pong') {
+        console.log('Content script already injected and responding');
+        return true;
+      }
+    } catch (e) {
+      console.log('Content script not responding, will inject:', e.message);
+    }
+    
     // Try to inject the content script
-    await chrome.scripting.executeScript({
+    const results = await chrome.scripting.executeScript({
       target: { tabId: tabId },
       files: ['content.js']
     });
-    console.log('Content script injected successfully');
-    return true;
+    
+    console.log('Content script injection results:', results);
+    
+    // Wait a bit for the content script to initialize
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Test if the injection worked
+    try {
+      const testResponse = await new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, {action: 'ping'}, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve(response);
+          }
+        });
+      });
+      
+      if (testResponse && testResponse.message === 'pong') {
+        console.log('Content script injected successfully and responding');
+        return true;
+      } else {
+        console.error('Content script injected but not responding correctly:', testResponse);
+        return false;
+      }
+    } catch (e) {
+      console.error('Content script injected but not responding:', e);
+      return false;
+    }
+    
   } catch (error) {
     console.error('Failed to inject content script:', error);
+    console.error('Injection error details:', {
+      message: error.message,
+      stack: error.stack,
+      type: typeof error
+    });
     return false;
   }
 }
@@ -237,12 +292,36 @@ testBtn.addEventListener('click', async () => {
   clearError();
   
   try {
+    // First, check if we can access tabs
+    console.log('Checking tab access...');
     const tabs = await chrome.tabs.query({active: true, currentWindow: true});
     const tab = tabs[0];
-    console.log('Testing connection to tab:', tab);
+    console.log('Current tab:', tab);
     
     if (!tab.url || !tab.url.startsWith('https://docs.google.com/document/')) {
       showError('Please use this extension on a Google Docs page.');
+      return;
+    }
+    
+    // Check if we have the right permissions
+    console.log('Checking permissions...');
+    const permissions = await chrome.permissions.getAll();
+    console.log('Current permissions:', permissions);
+    
+    // Check if we can inject scripts
+    console.log('Testing script injection permission...');
+    try {
+      const testInjection = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          console.log('Test injection successful');
+          return 'injection test successful';
+        }
+      });
+      console.log('Script injection test result:', testInjection);
+    } catch (e) {
+      console.error('Script injection test failed:', e);
+      showError(`Script injection failed: ${e.message}. Please check extension permissions.`);
       return;
     }
     
@@ -261,11 +340,26 @@ testBtn.addEventListener('click', async () => {
     
   } catch (error) {
     console.error('Ping failed:', error);
-    const errorMessage = error.message || 'Unknown error';
-    showError(`Content script not responding: ${errorMessage}. Please refresh the page and try again.`);
+    console.error('Error type:', typeof error);
+    console.error('Error constructor:', error.constructor.name);
+    console.error('Error properties:', Object.getOwnPropertyNames(error));
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     
-    // Additional debugging info
-    console.log('Full error object:', error);
-    console.log('Error stack:', error.stack);
+    // Try to get more details about the error
+    let errorDetails = 'Unknown error';
+    if (error.message) {
+      errorDetails = error.message;
+    } else if (typeof error === 'string') {
+      errorDetails = error;
+    } else if (error && typeof error === 'object') {
+      try {
+        errorDetails = JSON.stringify(error);
+      } catch (e) {
+        errorDetails = error.toString();
+      }
+    }
+    
+    showError(`Content script not responding: ${errorDetails}. Please refresh the page and try again.`);
   }
 }); 
